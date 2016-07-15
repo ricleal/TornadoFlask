@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>Flask Tornado</title>
+    <!-- Latest compiled and minified CSS -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" integrity="sha384-1q8mTJOASx8j1Au+a5WDVnPi2lkFfwwEAa8hDDdjZlpLegxhjVME1fgjWPGmkzs7" crossorigin="anonymous">
+    <!-- Optional theme -->
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap-theme.min.css" integrity="sha384-fLW2N01lMqjakBkx3l/M9EahuwpSfeNvV63J5ezn3uZzapT0u7EYsXMjQV+0En5r" crossorigin="anonymous">
+
+    <script src="https://cdn.jsdelivr.net/vue/1.0.24/vue.js"></script>
+
+    <style>
+        body {
+            padding-top: 60px;
+            padding-left: 60px;
+            padding-right: 60px;
+        }
+
+        @media (max-width: 980px) {
+            body {
+                padding-top: 0;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="app">
+        <div class="panel panel-default">
+            <div class="panel-heading">
+                <h3 class="panel-title">This should be changing...</h3>
+            </div>
+            <div class="panel-body">
+                <p>{{ message }}</p>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        var vm = new Vue({
+            el: '#app',
+            data: {
+                message: 'Changed?'
+            },
+            methods: {
+                getMessage: function() {
+                    var source = new EventSource('/events');
+                    source.onmessage = function(remote_message) {
+                        vm.message = remote_message.data;
+                    };
+                }
+            }
+        });
+        vm.getMessage();
+    </script>
+
+
+
+    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+    <!-- Latest compiled and minified JavaScript -->
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js" integrity="sha384-0mSbJDEHialfmuBBQP6A4Qrprq5OVfW37PRR3j5ELqxss1yVqOtnepnHVP9aJ7xS" crossorigin="anonymous"></script>
+
+
+</body>
+
+</html>
