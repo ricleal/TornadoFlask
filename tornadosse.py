@@ -1,11 +1,3 @@
-"""Demonstration of server-sent events with Tornado. To see the
-stream, you can either point your browser to ``http://localhost:8080``
-or use ``curl`` like so::
-
-  $ curl http://localhost:8080/events
-
-"""
-
 import signal, tornado, os
 from tornado import web, gen
 from tornado.options import options
@@ -13,11 +5,22 @@ from tornado.httpserver import HTTPServer
 from tornado.ioloop import IOLoop, PeriodicCallback
 from tornado.iostream import StreamClosedError
 
+
+"""
+
+Main server!
+
+Tornado sends SSE
+
+Rerouts other calls to FLASK
+
+"""
+
 def func():
     a = 0
     while True:
         yield a
-        a = a+1
+        a += 1
 
 class DataSource(object):
     """Generic object for producing data to feed to clients."""
@@ -65,7 +68,6 @@ class EventSource(web.RequestHandler):
 
 class MainHandler(web.RequestHandler):
     def get(self):
-        #self.write(html)
         self.redirect("/static/index.html")
 
 if __name__ == "__main__":
@@ -79,11 +81,17 @@ if __name__ == "__main__":
     checker = PeriodicCallback(lambda: get_next(), 1000.)
     checker.start()
 
+    # Flask
+    from flasky import app as flaskapp
+    from tornado.wsgi import WSGIContainer
+    flask_handler = WSGIContainer(flaskapp)
+
     app = web.Application(
         [
             (r'/', MainHandler),
             (r'/events', EventSource, dict(source=publisher)),
-            (r'/static/(.*)', tornado.web.StaticFileHandler, {'path': "./static"}),
+            (r'/static/(.*)', web.StaticFileHandler, {'path': "./static"}),
+            (r".*", web.FallbackHandler, dict(fallback=flask_handler)),
         ],
         debug=True
     )
