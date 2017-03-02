@@ -33,7 +33,8 @@
                 <h3 class="panel-title">This should be changing...</h3>
             </div>
             <div class="panel-body">
-                <p>{{ message }}</p>
+                <p><strong>Name:</strong> {{ message.name }}</p>
+                <p><strong>Adress:</strong> {{ message.address }}</p>
             </div>
         </div>
         <div class="panel panel-default">
@@ -45,7 +46,10 @@
                 <button v-on:click="fetchTask">Fetch task</button>
             </div>
         </div>
-        <div class="alert alert-success" role="alert">{{ task }}</div>
+        <div class="alert alert-success" role="alert">
+            <p><strong>Title:</strong> {{ task.title }}</p>
+            <p><strong>Description:</strong> {{ task.description }}</p>
+        </div>
     </div>
 
     <script>
@@ -60,7 +64,8 @@
                 getMessage: function() {
                     var source = new EventSource('/events');
                     source.onmessage = function(remote_message) {
-                        vm.message = remote_message.data;
+                        vm.message = JSON.parse(remote_message.data);
+                        //console.log(vm.message);
                     };
                 },
                 fetchTask: function() {
@@ -70,7 +75,7 @@
                         data = response.json();
                         console.log(data);
                         // set data on vm
-                        this.$set('task', data.task.description);
+                        this.$set('task', data.task);
                     }, (response) => {
                         // error callback
                     });

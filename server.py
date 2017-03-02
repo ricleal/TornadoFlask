@@ -1,10 +1,25 @@
-import signal, tornado, os
-from tornado import web, gen
-from tornado.options import options
+#!/usr/bin/env python3
+
+import json
+import logging
+import os
+import signal
+
+import tornado
+from tornado import gen, web
 from tornado.httpserver import HTTPServer
 from tornado.ioloop import IOLoop, PeriodicCallback
 from tornado.iostream import StreamClosedError
+from tornado.options import options
+from tornado.wsgi import WSGIContainer
 
+from faker import Factory
+from flask_server import app as flaskapp
+
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
+
+fake = Factory.create()
 
 """
 
@@ -16,14 +31,21 @@ Rerouts other calls to FLASK
 
 """
 
-def func():
-    a = 0
-    while True:
-        yield a
-        a += 1
+
+def random_string():
+    '''
+    Random dict 
+    '''
+    out = {"name": fake.name(),
+           "address": fake.address()}
+    return json.dumps(out)
+
 
 class DataSource(object):
-    """Generic object for producing data to feed to clients."""
+    """
+    Generic object for producing data to feed to clients.
+    """
+
     def __init__(self, initial_data=None):
         self._data = initial_data
 
@@ -32,16 +54,20 @@ class DataSource(object):
         return self._data
 
     @data.setter
-    def data(self, new_data):
-        self._data = new_data
+    def data(self, data):
+        self._data = data
+
 
 class EventSource(web.RequestHandler):
-    """Basic handler for server-sent events."""
+    """
+    Basic handler for server-sent events.
+    """
+
     def initialize(self, source):
-        """The ``source`` parameter is a string that is updated with
+        """
+        The ``source`` parameter is a string that is updated with
         new data. The :class:`EventSouce` instance will continuously
         check if it is updated and publish to clients when it is.
-
         """
         self.source = source
         self._last = None
@@ -50,12 +76,14 @@ class EventSource(web.RequestHandler):
 
     @gen.coroutine
     def publish(self, data):
-        """Pushes data to a listener."""
+        """
+        Pushes data to a listener.
+        """
         try:
             self.write('data: {}\n\n'.format(data))
             yield self.flush()
-        except StreamClosedError:
-            pass
+        except StreamClosedError as exception:
+            logger.exception(exception)
 
     @gen.coroutine
     def get(self):
@@ -66,32 +94,33 @@ class EventSource(web.RequestHandler):
             else:
                 yield gen.sleep(0.005)
 
+
 class MainHandler(web.RequestHandler):
+
     def get(self):
         self.redirect("/static/index.html")
 
 if __name__ == "__main__":
+
     options.parse_command_line()
 
-    generator = func()
-    publisher = DataSource(next(generator))
+    publisher = DataSource(random_string())
+
     def get_next():
-        publisher.data = next(generator)
-        print(publisher.data)
+        publisher.data = random_string()
+        logger.debug("Publisher: %s", publisher.data)
+
     checker = PeriodicCallback(lambda: get_next(), 1000.)
     checker.start()
 
-    # Flask
-    from flasky import app as flaskapp
-    from tornado.wsgi import WSGIContainer
     flask_handler = WSGIContainer(flaskapp)
 
     app = web.Application(
         [
             (r'/', MainHandler),
-            (r'/events', EventSource, dict(source=publisher)),
+            (r'/events', EventSource, {'source': publisher}),
             (r'/static/(.*)', web.StaticFileHandler, {'path': "./static"}),
-            (r".*", web.FallbackHandler, dict(fallback=flask_handler)),
+            (r".*", web.FallbackHandler, {'fallback': flask_handler}),
         ],
         debug=True
     )
