@@ -4,29 +4,29 @@
 <head>
     <title>Flask Tornado</title>
     <!-- Latest compiled and minified CSS -->
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" integrity="sha384-1q8mTJOASx8j1Au+a5WDVnPi2lkFfwwEAa8hDDdjZlpLegxhjVME1fgjWPGmkzs7" crossorigin="anonymous">
-    <!-- Optional theme -->
-    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap-theme.min.css" integrity="sha384-fLW2N01lMqjakBkx3l/M9EahuwpSfeNvV63J5ezn3uZzapT0u7EYsXMjQV+0En5r" crossorigin="anonymous">
-
-    <script src="https://cdn.jsdelivr.net/vue/1.0.24/vue.js"></script>
-
-    <style>
-        body {
-            padding-top: 60px;
-            padding-left: 60px;
-            padding-right: 60px;
-        }
-
-        @media (max-width: 980px) {
-            body {
-                padding-top: 0;
-            }
-        }
-    </style>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap.min.css" integrity="sha384-1q8mTJOASx8j1Au+a5WDVnPi2lkFfwwEAa8hDDdjZlpLegxhjVME1fgjWPGmkzs7"
+        crossorigin="anonymous">
+        <!-- Optional theme -->
+        <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/css/bootstrap-theme.min.css" integrity="sha384-fLW2N01lMqjakBkx3l/M9EahuwpSfeNvV63J5ezn3uZzapT0u7EYsXMjQV+0En5r"
+            crossorigin="anonymous">
+            <style>
+                body {
+                    padding-top: 60px;
+                    padding-left: 60px;
+                    padding-right: 60px;
+                }
+                
+                @media (max-width: 980px) {
+                    body {
+                        padding-top: 0;
+                    }
+                }
+            </style>
 </head>
-
 <body>
-
+    <div class="container">
+    <h1>Tornado ASync and Flask Sync example</h1>
+    <p>&nbsp;</p>
     <div id="app">
         <div class="panel panel-default">
             <div class="panel-heading">
@@ -39,43 +39,63 @@
         </div>
         <div class="panel panel-default">
             <div class="panel-heading">
-                <h3 class="panel-title">Task</h3>
+                <h3 class="panel-title">Tasks</h3>
             </div>
             <div class="panel-body">
-                <input v-model="task_id">
-                <button v-on:click="fetchTask">Fetch task</button>
+                <div class="form-group" >
+                    <label class="control-label" for="task">Task</label>
+                    <input name="task_id" v-model="task_id" v-validate="{ rules: { required: true, regex: '^([0-9]+)$' } }" 
+                        class="form-control" type="text" placeholder="Task id..." />
+                    <span v-show="errors.has('task_id')" style="color:red;">{{ errors.first('task_id') }}</span>
+                </div>
+                <button v-bind:disabled="errors.has('task_id')" v-on:click="fetchTask">Fetch task</button>
             </div>
         </div>
-        <div class="alert alert-success" role="alert">
+        <div v-if="hasTask" class="alert alert-success" role="alert">
             <p><strong>Title:</strong> {{ task.title }}</p>
             <p><strong>Description:</strong> {{ task.description }}</p>
         </div>
     </div>
+    </div>
+</body>
+
+<!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+<!-- Latest compiled and minified JavaScript -->
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js"></script>
+<script src="https://unpkg.com/vue"></script>
+<script src="https://cdn.jsdelivr.net/vue.resource/1.2.1/vue-resource.min.js"></script>
+<script src="https://cdn.jsdelivr.net/vee-validate/2.0.0-beta.23/vee-validate.min.js"></script>
 
     <script>
+        Vue.use(VeeValidate);
         var vm = new Vue({
             el: '#app',
             data: {
                 message: 'Changed?',
-                task: '',
+                task: {},
                 task_id: ''
             },
+            computed: {
+                hasTask: function() {
+                    return Object.keys(this.task).length;
+                }
+            },
             methods: {
-                getMessage: function() {
+                getMessage: function () {
                     var source = new EventSource('/events');
-                    source.onmessage = function(remote_message) {
+                    source.onmessage = function (remote_message) {
                         vm.message = JSON.parse(remote_message.data);
                         //console.log(vm.message);
                     };
                 },
-                fetchTask: function() {
-                    this.$http.get('/tasks/'+this.task_id.trim()).then((response) => {
-                        console.log(response.status);
-                        console.log(response.statusText);
-                        data = response.json();
-                        console.log(data);
+                fetchTask: function () {
+                    this.$http.get('/tasks/' + this.task_id.trim()).then((response) => {
+                        console.log("Response Status: ", response.status, response.statusText);
+                        data = response.body;
+                        console.log("Data:", data.task);
                         // set data on vm
-                        this.$set('task', data.task);
+                        this.task = data.task;
                     }, (response) => {
                         // error callback
                     });
@@ -84,16 +104,5 @@
         });
         vm.getMessage();
     </script>
-
-
-
-    <!-- jQuery (necessary for Bootstrap's JavaScript plugins) -->
-    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
-    <!-- Latest compiled and minified JavaScript -->
-    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.6/js/bootstrap.min.js" integrity="sha384-0mSbJDEHialfmuBBQP6A4Qrprq5OVfW37PRR3j5ELqxss1yVqOtnepnHVP9aJ7xS" crossorigin="anonymous"></script>
-
-    <script src="https://cdn.jsdelivr.net/vue.resource/0.9.3/vue-resource.min.js"></script>
-
-</body>
 
 </html>
