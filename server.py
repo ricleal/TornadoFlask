@@ -2,10 +2,9 @@
 
 import json
 import logging
-import os
 import signal
 
-import tornado
+from faker import Factory
 from tornado import gen, web
 from tornado.httpserver import HTTPServer
 from tornado.ioloop import IOLoop, PeriodicCallback
@@ -13,11 +12,10 @@ from tornado.iostream import StreamClosedError
 from tornado.options import options
 from tornado.wsgi import WSGIContainer
 
-from faker import Factory
 from flask_server import app as flaskapp
 
-logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.DEBUG)
 
 fake = Factory.create()
 
@@ -32,30 +30,31 @@ Rerouts other calls to FLASK
 """
 
 
-def random_string():
-    '''
-    Random dict 
-    '''
-    out = {"name": fake.name(),
-           "address": fake.address()}
-    return json.dumps(out)
-
-
 class DataSource(object):
     """
     Generic object for producing data to feed to clients.
+    Next generates random dictionary data
     """
 
     def __init__(self, initial_data=None):
-        self._data = initial_data
+        if initial_data is None:
+            self.next()
+        else:
+            self._data = initial_data
 
     @property
     def data(self):
-        return self._data
+        return json.dumps(self._data)
 
-    @data.setter
-    def data(self, data):
-        self._data = data
+    def next(self):
+        '''
+        Gets some random data
+        '''
+        self._data = {
+            "name": fake.name(),
+            "address": fake.address()
+        }
+        logger.debug(self._data)
 
 
 class EventSource(web.RequestHandler):
@@ -83,8 +82,8 @@ class EventSource(web.RequestHandler):
             self.write('data: {}\n\n'.format(data))
             yield self.flush()
         except StreamClosedError as exception:
-            logger.exception(exception)
-
+            logger.warning(str(exception))
+            
     @gen.coroutine
     def get(self):
         while True:
@@ -96,25 +95,26 @@ class EventSource(web.RequestHandler):
 
 
 class MainHandler(web.RequestHandler):
+    '''
+    Main HTTP handler
+    '''
 
     def get(self):
+        '''
+        It just forwards to IndexError
+        '''
         self.redirect("/static/index.html")
 
 if __name__ == "__main__":
-
+    # Tornado options
     options.parse_command_line()
-
-    publisher = DataSource(random_string())
-
-    def get_next():
-        publisher.data = random_string()
-        logger.debug("Publisher: %s", publisher.data)
-
-    checker = PeriodicCallback(lambda: get_next(), 1000.)
+    # publisher for SSE
+    publisher = DataSource()
+    checker = PeriodicCallback(lambda: publisher.next(), 1000.)
     checker.start()
-
+    # All the requests handled by flask
     flask_handler = WSGIContainer(flaskapp)
-
+    # Router
     app = web.Application(
         [
             (r'/', MainHandler),
